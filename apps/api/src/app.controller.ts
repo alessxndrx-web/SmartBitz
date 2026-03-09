@@ -1,0 +1,13 @@
+import { Controller, Get } from '@nestjs/common';
+import { AppService } from './app.service';
+
+@Controller()
+export class AppController {
+  constructor(private readonly appService: AppService) {}
+
+  // NOTE: /health is owned by HealthModule. Keep this lightweight probe separate.
+  @Get('healthz')
+  getHealth() {
+    return this.appService.getHealth();
+  }
+}

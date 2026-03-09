@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.next/
+coverage/
+uploads/
+.env
+.env.*
+!.env.example
+.windsurf/
+.aider*
+*.log
+.aider*
