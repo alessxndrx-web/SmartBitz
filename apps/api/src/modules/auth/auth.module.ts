@@ -7,9 +7,10 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { PrismaService } from '../../database/prisma.service';
 import { RolesModule } from '../roles/roles.module';
 
-const jwtSecret = process.env.JWT_SECRET;
+const jwtSecret = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'dev-jwt-secret');
+
 if (!jwtSecret) {
-  throw new Error('JWT_SECRET environment variable is not set');
+  throw new Error('JWT_SECRET environment variable is required in production');
 }
 
 @Module({

@@ -2,19 +2,22 @@ import 'reflect-metadata';
 import { PrismaClient } from '@prisma/client';
 import { execSync } from 'child_process';
 
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'file:./src/database/prisma/dev.db';
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret';
+
 const prisma = new PrismaClient();
 
 beforeAll(async () => {
-  // Reset database
   execSync('npx prisma migrate reset --force --skip-seed --skip-generate', {
     stdio: 'inherit',
     cwd: process.cwd(),
+    env: process.env,
   });
-  
-  // Run migrations
+
   execSync('npx prisma migrate deploy', {
     stdio: 'inherit',
     cwd: process.cwd(),
+    env: process.env,
   });
 });
 
@@ -23,7 +26,6 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  // Clean up data before each test
   await prisma.payment.deleteMany();
   await prisma.invoice.deleteMany();
   await prisma.inventoryMovement.deleteMany();
