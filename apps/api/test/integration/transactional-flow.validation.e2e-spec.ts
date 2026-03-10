@@ -13,6 +13,10 @@ describe('Transactional Flow Validation', () => {
         cwd: process.cwd(),
         encoding: 'utf8',
         timeout: 30000,
+        env: {
+          ...process.env,
+          DATABASE_URL: process.env.DATABASE_URL || 'file:./src/database/prisma/dev.db',
+        },
       });
 
       // Verificar que el flujo completó exitosamente
