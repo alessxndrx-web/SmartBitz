@@ -74,8 +74,8 @@ export class RolesService {
     const { permissionIds, ...roleData } = updateData;
 
     // Update role basic info
-    const role = await this.prisma.role.update({
-      where: { id },
+    await this.prisma.role.updateMany({
+      where: { id, tenantId },
       data: roleData,
     });
 
@@ -89,13 +89,31 @@ export class RolesService {
 
   async removeRole(id: string, tenantId: string) {
     await this.findRoleById(id, tenantId);
-    return this.prisma.role.update({
-      where: { id },
+
+    await this.prisma.role.updateMany({
+      where: { id, tenantId },
       data: { isActive: false },
     });
+
+    return { id, deleted: true };
   }
 
   async assignPermissionsToRole(roleId: string, tenantId: string, permissionIds: string[]) {
+    await this.findRoleById(roleId, tenantId);
+
+    const validPermissions = await this.prisma.permission.findMany({
+      where: {
+        id: { in: permissionIds },
+        tenantId,
+        isActive: true,
+      },
+      select: { id: true },
+    });
+
+    if (validPermissions.length !== new Set(permissionIds).size) {
+      throw new NotFoundException('One or more permissions were not found for this tenant');
+    }
+
     const rolePermissions = permissionIds.map(permissionId => ({
       roleId,
       permissionId,
@@ -155,9 +173,13 @@ export class RolesService {
       throw new NotFoundException('Permission not found');
     }
 
-    return this.prisma.permission.update({
-      where: { id },
+    await this.prisma.permission.updateMany({
+      where: { id, tenantId },
       data: updateData,
+    });
+
+    return this.prisma.permission.findFirst({
+      where: { id, tenantId, isActive: true },
     });
   }
 
@@ -170,31 +192,31 @@ export class RolesService {
       throw new NotFoundException('Permission not found');
     }
 
-    return this.prisma.permission.update({
-      where: { id: permission.id },
+    await this.prisma.permission.updateMany({
+      where: { id: permission.id, tenantId },
       data: { isActive: false },
     });
+
+    return { id, deleted: true };
   }
 
   // Get all permissions for a user
-  async getUserPermissions(userId: string, tenantId: string): Promise<string[]> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { tenantId: true, role: true },
+  async getUserPermissions(userId: string, tenantId: string, roleName?: string): Promise<string[]> {
+    const membership = await this.prisma.tenantMembership.findFirst({
+      where: { userId, tenantId },
+      select: { role: true },
     });
 
-    if (!user) {
-      return [];
-    }
+    const effectiveRole = roleName || membership?.role;
 
-    if (tenantId && user.tenantId !== tenantId) {
+    if (!effectiveRole) {
       return [];
     }
 
     const role = await this.prisma.role.findFirst({
       where: {
-        tenantId: user.tenantId,
-        name: user.role,
+        tenantId,
+        name: effectiveRole,
         isActive: true,
       },
       include: {
@@ -228,121 +250,128 @@ export class RolesService {
     return permissions.includes(requiredPermission);
   }
 
+  async ensureTenantRoleExists(tenantId: string, roleName: string) {
+    const existing = await this.prisma.role.findFirst({
+      where: { tenantId, name: roleName, isActive: true },
+    });
+
+    if (existing) {
+      return existing;
+    }
+
+    return this.prisma.role.create({
+      data: {
+        tenantId,
+        name: roleName,
+        description: `Auto-created role ${roleName}`,
+      },
+    });
+  }
+
   // Initialize default roles and permissions for a tenant
   async initializeDefaultRoles(tenantId: string) {
-    // Create default permissions
     const defaultPermissions = [
-      // Customers
       { name: 'View Customers', module: 'customers', action: 'read' },
       { name: 'Create Customers', module: 'customers', action: 'create' },
       { name: 'Update Customers', module: 'customers', action: 'update' },
       { name: 'Delete Customers', module: 'customers', action: 'delete' },
-      
-      // Invoices
       { name: 'View Invoices', module: 'invoices', action: 'read' },
       { name: 'Create Invoices', module: 'invoices', action: 'create' },
       { name: 'Update Invoices', module: 'invoices', action: 'update' },
       { name: 'Delete Invoices', module: 'invoices', action: 'delete' },
-      
-      // Inventory
       { name: 'View Inventory', module: 'inventory', action: 'read' },
       { name: 'Create Inventory Items', module: 'inventory', action: 'create' },
       { name: 'Update Inventory Items', module: 'inventory', action: 'update' },
       { name: 'Delete Inventory Items', module: 'inventory', action: 'delete' },
-      
-      // Purchases
       { name: 'View Purchases', module: 'purchases', action: 'read' },
       { name: 'Create Purchases', module: 'purchases', action: 'create' },
       { name: 'Update Purchases', module: 'purchases', action: 'update' },
       { name: 'Delete Purchases', module: 'purchases', action: 'delete' },
-      
-      // Roles
+      { name: 'View Payments', module: 'payments', action: 'read' },
+      { name: 'Create Payments', module: 'payments', action: 'create' },
+      { name: 'Update Payments', module: 'payments', action: 'update' },
+      { name: 'Delete Payments', module: 'payments', action: 'delete' },
+      { name: 'View Support Tickets', module: 'support', action: 'read' },
+      { name: 'Create Support Tickets', module: 'support', action: 'create' },
+      { name: 'Update Support Tickets', module: 'support', action: 'update' },
+      { name: 'Delete Support Tickets', module: 'support', action: 'delete' },
+      { name: 'View Files', module: 'files', action: 'read' },
+      { name: 'Create Files', module: 'files', action: 'create' },
+      { name: 'Update Files', module: 'files', action: 'update' },
+      { name: 'Delete Files', module: 'files', action: 'delete' },
+      { name: 'View Tenants (Platform)', module: 'tenants', action: 'read' },
+      { name: 'Create Tenants (Platform)', module: 'tenants', action: 'create' },
       { name: 'View Roles', module: 'roles', action: 'read' },
       { name: 'Create Roles', module: 'roles', action: 'create' },
       { name: 'Update Roles', module: 'roles', action: 'update' },
       { name: 'Delete Roles', module: 'roles', action: 'delete' },
+      { name: 'View Platform Admin Overview', module: 'platform-admin', action: 'read' },
     ];
 
+    const existingRoles = await this.prisma.role.findMany({
+      where: { tenantId },
+      select: { id: true },
+    });
+
+    await this.prisma.rolePermission.deleteMany({
+      where: { roleId: { in: existingRoles.map((role) => role.id) } },
+    });
+    await this.prisma.role.deleteMany({ where: { tenantId } });
+    await this.prisma.permission.deleteMany({ where: { tenantId } });
+
     const permissions = await Promise.all(
-      defaultPermissions.map(permission =>
+      defaultPermissions.map((permission) =>
         this.prisma.permission.create({
           data: {
             ...permission,
             tenantId,
           },
-        })
-      )
+        }),
+      ),
     );
 
-    // Create default roles
-    const ownerRole = await this.prisma.role.create({
+    const tenantOwnerRole = await this.prisma.role.create({
       data: {
-        name: 'owner',
-        description: 'Full access to all features',
+        name: 'tenant_owner',
+        description: 'Full access to tenant features',
         tenantId,
       },
     });
 
-    const adminRole = await this.prisma.role.create({
+    const tenantAdminRole = await this.prisma.role.create({
       data: {
-        name: 'admin',
-        description: 'Administrative access',
+        name: 'tenant_admin',
+        description: 'Administrative tenant access',
         tenantId,
       },
     });
 
-    const cashierRole = await this.prisma.role.create({
+    const staffRole = await this.prisma.role.create({
       data: {
-        name: 'cashier',
-        description: 'Point of sales and basic operations',
+        name: 'staff',
+        description: 'Operational staff access',
         tenantId,
       },
     });
 
-    const accountantRole = await this.prisma.role.create({
-      data: {
-        name: 'accountant',
-        description: 'Financial and billing operations',
-        tenantId,
-      },
-    });
-
-    const operatorRole = await this.prisma.role.create({
-      data: {
-        name: 'operator',
-        description: 'Basic operational access',
-        tenantId,
-      },
-    });
-
-    // Assign all permissions to owner
-    await this.assignPermissionsToRole(ownerRole.id, tenantId, permissions.map(p => p.id));
-
-    // Assign most permissions to admin (except roles management)
-    const adminPermissions = permissions.filter(
-      p => p.module !== 'roles'
+    const tenantScopedPermissions = permissions.filter(
+      (p) => !['tenants', 'platform-admin'].includes(p.module),
     );
-    await this.assignPermissionsToRole(adminRole.id, tenantId, adminPermissions.map(p => p.id));
 
-    // Assign limited permissions to cashier
-    const cashierPermissions = permissions.filter(
-      p => ['customers', 'invoices'].includes(p.module) && p.action === 'read' ||
-           ['invoices'].includes(p.module) && ['create', 'update'].includes(p.action)
+    await this.assignPermissionsToRole(tenantOwnerRole.id, tenantId, tenantScopedPermissions.map((p) => p.id));
+
+    const tenantAdminPermissions = tenantScopedPermissions.filter((p) => p.module !== 'roles');
+    await this.assignPermissionsToRole(tenantAdminRole.id, tenantId, tenantAdminPermissions.map((p) => p.id));
+
+    const staffPermissions = tenantScopedPermissions.filter(
+      (p) =>
+        (p.action === 'read' && ['customers', 'inventory', 'invoices', 'purchases', 'payments', 'support', 'files'].includes(p.module)) ||
+        (p.module === 'invoices' && ['create', 'update'].includes(p.action)) ||
+        (p.module === 'payments' && p.action === 'create') ||
+        (p.module === 'support' && ['create', 'update'].includes(p.action)),
     );
-    await this.assignPermissionsToRole(cashierRole.id, tenantId, cashierPermissions.map(p => p.id));
+    await this.assignPermissionsToRole(staffRole.id, tenantId, staffPermissions.map((p) => p.id));
 
-    // Assign financial permissions to accountant
-    const accountantPermissions = permissions.filter(
-      p => ['customers', 'invoices', 'purchases'].includes(p.module)
-    );
-    await this.assignPermissionsToRole(accountantRole.id, tenantId, accountantPermissions.map(p => p.id));
-
-    // Assign basic read permissions to operator
-    const operatorPermissions = permissions.filter(
-      p => p.action === 'read' && ['customers', 'inventory'].includes(p.module)
-    );
-    await this.assignPermissionsToRole(operatorRole.id, tenantId, operatorPermissions.map(p => p.id));
-
-    return { ownerRole, adminRole, cashierRole, accountantRole, operatorRole };
+    return { tenantOwnerRole, tenantAdminRole, staffRole };
   }
 }

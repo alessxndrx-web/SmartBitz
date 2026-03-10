@@ -19,6 +19,7 @@ model Tenant {
   updatedAt        DateTime @updatedAt
 
   users            User[]
+  memberships      TenantMembership[]
   customers        Customer[]
   invoices         Invoice[]
   inventoryItems   InventoryItem[]
@@ -45,6 +46,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  memberships TenantMembership[]
 }
 
 model Customer {
@@ -292,6 +294,20 @@ model File {
   updatedAt   DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+
+model TenantMembership {
+  id        String   @id @default(cuid())
+  userId    String
+  tenantId  String
+  role      String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tenantId])
 }
 
 model Payment {

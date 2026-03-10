@@ -6,6 +6,7 @@ export class AuthResponseDto {
     role: string;
     tenantId: string;
     permissions?: string[];
+    membershipId?: string;
   };
   accessToken: string;
   tenant: {

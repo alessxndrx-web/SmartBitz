@@ -34,7 +34,7 @@ describe('HTTP auth', () => {
         fullName: 'Test User',
         email,
         password,
-        role: 'operator',
+        role: 'staff',
         tenantSlug: tenant.slug,
       })
       .expect(201);

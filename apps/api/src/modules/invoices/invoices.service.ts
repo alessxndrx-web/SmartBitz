@@ -132,10 +132,14 @@ export class InvoicesService {
     }
 
     return await this.prisma.$transaction(async (tx) => {
-      const updatedInvoice = await tx.invoice.update({
-        where: { id },
+      await tx.invoice.updateMany({
+        where: { id, tenantId },
         data: { status },
       });
+      const updatedInvoice = await tx.invoice.findFirst({ where: { id, tenantId } });
+      if (!updatedInvoice) {
+        throw new NotFoundException('Invoice not found');
+      }
 
       // If changing from draft to sent, deduct stock
       if (invoice.status === 'draft' && (status === 'sent' || status === 'paid')) {
@@ -281,22 +285,22 @@ export class InvoicesService {
       updateData.dueDate = new Date(updateInvoiceDto.dueDate);
     }
 
-    return this.prisma.invoice.update({
-      where: { id },
+    await this.prisma.invoice.updateMany({
+      where: { id, tenantId },
       data: updateData,
-      include: {
-        customer: true,
-        items: true,
-      },
     });
+
+    return this.findOne(id, tenantId);
   }
 
   async remove(id: string, tenantId: string) {
     await this.findOne(id, tenantId);
 
-    return this.prisma.invoice.delete({
-      where: { id },
+    await this.prisma.invoice.deleteMany({
+      where: { id, tenantId },
     });
+
+    return { id, deleted: true };
   }
 
   async getStats(tenantId: string) {

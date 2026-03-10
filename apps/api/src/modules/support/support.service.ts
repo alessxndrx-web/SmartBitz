@@ -74,39 +74,47 @@ export class SupportService {
       updateData.resolvedAt = null;
     }
 
-    return this.prisma.supportTicket.update({
-      where: { id },
+    await this.prisma.supportTicket.updateMany({
+      where: { id, tenantId },
       data: updateData,
     });
+
+    return this.findOne(id, tenantId);
   }
 
   async assignTicket(id: string, assignedTo: string, tenantId: string) {
     await this.findOne(id, tenantId);
 
-    return this.prisma.supportTicket.update({
-      where: { id },
+    await this.prisma.supportTicket.updateMany({
+      where: { id, tenantId },
       data: { 
         assignedTo,
         status: TicketStatus.IN_PROGRESS,
       },
     });
+
+    return this.findOne(id, tenantId);
   }
 
   async updateTicket(id: string, updateData: Partial<CreateSupportTicketDto>, tenantId: string) {
     await this.findOne(id, tenantId);
 
-    return this.prisma.supportTicket.update({
-      where: { id },
+    await this.prisma.supportTicket.updateMany({
+      where: { id, tenantId },
       data: updateData,
     });
+
+    return this.findOne(id, tenantId);
   }
 
   async removeTicket(id: string, tenantId: string) {
     await this.findOne(id, tenantId);
 
-    return this.prisma.supportTicket.delete({
-      where: { id },
+    await this.prisma.supportTicket.deleteMany({
+      where: { id, tenantId },
     });
+
+    return { id, deleted: true };
   }
 
   async getStats(tenantId: string) {

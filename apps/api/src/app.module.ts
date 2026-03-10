@@ -16,6 +16,8 @@ import { AuditInterceptor } from './modules/audit/audit.interceptor';
 import { SupportModule } from './modules/support/support.module';
 import { FilesModule } from './modules/files/files.module';
 import { HealthModule } from './modules/health/health.module';
+import { PlatformAdminModule } from './modules/platform-admin/platform-admin.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import storageConfig from './config/storage.config';
 
@@ -42,6 +44,8 @@ import storageConfig from './config/storage.config';
     SupportModule,
     FilesModule,
     HealthModule,
+    PaymentsModule,
+    PlatformAdminModule,
   ],
   controllers: [AppController],
   providers: [

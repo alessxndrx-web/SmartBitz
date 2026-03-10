@@ -61,8 +61,8 @@ export class PaymentsService {
       }
 
       if (newStatus !== invoice.status) {
-        await tx.invoice.update({
-          where: { id: invoice.id },
+        await tx.invoice.updateMany({
+          where: { id: invoice.id, tenantId },
           data: { status: newStatus },
         });
       }
@@ -174,7 +174,7 @@ export class PaymentsService {
     }
 
     return await this.prisma.$transaction(async (tx) => {
-      const updatedPayment = await tx.payment.update({
+      await tx.payment.updateMany({
         where: { id },
         data: updatePaymentDto,
       });
@@ -196,10 +196,21 @@ export class PaymentsService {
       }
 
       if (newStatus !== payment.invoice.status) {
-        await tx.invoice.update({
-          where: { id: payment.invoiceId },
+        await tx.invoice.updateMany({
+          where: { id: payment.invoiceId, tenantId },
           data: { status: newStatus },
         });
+      }
+
+      const updatedPayment = await tx.payment.findFirst({
+        where: {
+          id,
+          invoice: { tenantId },
+        },
+      });
+
+      if (!updatedPayment) {
+        throw new NotFoundException('Payment not found');
       }
 
       return updatedPayment;
@@ -220,7 +231,7 @@ export class PaymentsService {
     }
 
     return await this.prisma.$transaction(async (tx) => {
-      await tx.payment.delete({
+      await tx.payment.deleteMany({
         where: { id },
       });
 
@@ -240,12 +251,29 @@ export class PaymentsService {
         newStatus = 'draft';
       }
 
-      await tx.invoice.update({
-        where: { id: payment.invoiceId },
+      await tx.invoice.updateMany({
+        where: { id: payment.invoiceId, tenantId },
         data: { status: newStatus },
       });
 
       return { message: 'Payment deleted successfully', newStatus };
     });
+  }
+
+  async getStats(tenantId: string) {
+    const [count, aggregate] = await Promise.all([
+      this.prisma.payment.count({
+        where: { invoice: { tenantId } },
+      }),
+      this.prisma.payment.aggregate({
+        where: { invoice: { tenantId } },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    return {
+      totalPayments: count,
+      totalCollected: aggregate._sum.amount || 0,
+    };
   }
 }
