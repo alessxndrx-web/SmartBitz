@@ -1,5 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'file:./src/database/prisma/dev.db';
+
 const prisma = new PrismaClient();
 
 const TENANT_ID = 'test-tenant-123';
