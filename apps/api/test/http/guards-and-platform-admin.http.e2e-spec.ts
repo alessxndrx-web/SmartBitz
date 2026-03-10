@@ -93,6 +93,6 @@ describe('HTTP guards and platform-admin boundaries', () => {
     await request(app.getHttpServer())
       .get('/api/files')
       .set('Authorization', `Bearer ${tokenWithoutTenant}`)
-      .expect(403);
+      .expect(401);
   });
 });
