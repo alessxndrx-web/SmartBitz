@@ -31,18 +31,20 @@ export class InventoryService {
 
   async updateCategory(id: string, updateData: Partial<CreateCategoryDto>, tenantId: string) {
     await this.findCategoryById(id, tenantId);
-    return this.prisma.category.update({
-      where: { id },
+    await this.prisma.category.updateMany({
+      where: { id, tenantId },
       data: updateData,
     });
+    return this.findCategoryById(id, tenantId);
   }
 
   async removeCategory(id: string, tenantId: string) {
     await this.findCategoryById(id, tenantId);
-    return this.prisma.category.update({
-      where: { id },
+    await this.prisma.category.updateMany({
+      where: { id, tenantId },
       data: { isActive: false },
     });
+    return { id, deleted: true };
   }
 
   private async findCategoryById(id: string, tenantId: string) {
@@ -128,21 +130,20 @@ export class InventoryService {
 
   async updateItem(id: string, updateData: Partial<CreateInventoryItemDto>, tenantId: string) {
     await this.findOneItem(id, tenantId);
-    return this.prisma.inventoryItem.update({
-      where: { id },
+    await this.prisma.inventoryItem.updateMany({
+      where: { id, tenantId },
       data: updateData,
-      include: {
-        category: true,
-      },
     });
+    return this.findOneItem(id, tenantId);
   }
 
   async removeItem(id: string, tenantId: string) {
     await this.findOneItem(id, tenantId);
-    return this.prisma.inventoryItem.update({
-      where: { id },
+    await this.prisma.inventoryItem.updateMany({
+      where: { id, tenantId },
       data: { isActive: false },
     });
+    return { id, deleted: true };
   }
 
   // Inventory Movements

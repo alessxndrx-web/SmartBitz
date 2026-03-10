@@ -3,7 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../database/prisma.service';
 import { RolesService } from '../roles/roles.service';
 import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
+import { RegisterDto, UserRole } from './dto/register.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import * as bcrypt from 'bcryptjs';
 
@@ -16,7 +16,6 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
-    // Find tenant by slug
     const tenant = await this.prisma.tenant.findUnique({
       where: { slug: registerDto.tenantSlug },
     });
@@ -25,7 +24,6 @@ export class AuthService {
       throw new UnauthorizedException('Tenant not found');
     }
 
-    // Check if user already exists
     const existingUser = await this.prisma.user.findUnique({
       where: { email: registerDto.email },
     });
@@ -34,10 +32,8 @@ export class AuthService {
       throw new UnauthorizedException('User already exists');
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(registerDto.password, 10);
 
-    // Create user
     const user = await this.prisma.user.create({
       data: {
         fullName: registerDto.fullName,
@@ -48,12 +44,25 @@ export class AuthService {
       },
     });
 
-    // Generate JWT token
+    const membership = await this.prisma.tenantMembership.create({
+      data: {
+        userId: user.id,
+        tenantId: tenant.id,
+        role: registerDto.role,
+      },
+    });
+
+    if (registerDto.role !== UserRole.PLATFORM_ADMIN) {
+      await this.rolesService.ensureTenantRoleExists(tenant.id, registerDto.role);
+    }
+
     const payload = {
       sub: user.id,
+      userId: user.id,
       email: user.email,
-      tenantId: user.tenantId,
-      role: user.role,
+      tenantId: membership.tenantId,
+      membershipId: membership.id,
+      role: membership.role,
     };
 
     const accessToken = this.jwtService.sign(payload);
@@ -63,8 +72,9 @@ export class AuthService {
         id: user.id,
         fullName: user.fullName,
         email: user.email,
-        role: user.role,
-        tenantId: user.tenantId,
+        role: membership.role,
+        tenantId: membership.tenantId,
+        membershipId: membership.id,
       },
       accessToken,
       tenant: {
@@ -77,32 +87,39 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto): Promise<AuthResponseDto> {
-    // Find user with tenant
     const user = await this.prisma.user.findUnique({
       where: { email: loginDto.email },
-      include: { tenant: true },
     });
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Verify password
     const isPasswordValid = await bcrypt.compare(loginDto.password, user.password!);
 
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Get user permissions
-    const userPermissions = await this.rolesService.getUserPermissions(user.id, user.tenantId);
+    let membership = await this.prisma.tenantMembership.findFirst({
+      where: { userId: user.id },
+      include: { tenant: true },
+      orderBy: { createdAt: 'asc' },
+    });
 
-    // Generate JWT token
+    if (!membership) {
+      throw new UnauthorizedException('User has no tenant membership');
+    }
+
+    const userPermissions = await this.rolesService.getUserPermissions(user.id, membership.tenantId, membership.role);
+
     const payload = {
       sub: user.id,
+      userId: user.id,
       email: user.email,
-      tenantId: user.tenantId,
-      role: user.role,
+      tenantId: membership.tenantId,
+      membershipId: membership.id,
+      role: membership.role,
       permissions: userPermissions,
     };
 
@@ -113,16 +130,17 @@ export class AuthService {
         id: user.id,
         fullName: user.fullName,
         email: user.email,
-        role: user.role,
-        tenantId: user.tenantId,
+        role: membership.role,
+        tenantId: membership.tenantId,
+        membershipId: membership.id,
         permissions: userPermissions,
       },
       accessToken,
       tenant: {
-        id: user.tenant.id,
-        name: user.tenant.name,
-        slug: user.tenant.slug,
-        businessType: user.tenant.businessType,
+        id: membership.tenant.id,
+        name: membership.tenant.name,
+        slug: membership.tenant.slug,
+        businessType: membership.tenant.businessType,
       },
     };
   }

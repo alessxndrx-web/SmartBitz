@@ -6,7 +6,6 @@ import {
   Patch,
   Param,
   Delete,
-  Query,
   UseGuards,
 } from '@nestjs/common';
 import { SupportService } from './support.service';
@@ -15,9 +14,11 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../roles/guards/permissions.guard';
 import { Permissions } from '../roles/decorators/permissions.decorator';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { TenantGuard } from '../../common/guards/tenant.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @Controller('support')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
 export class SupportController {
   constructor(private readonly supportService: SupportService) {}
 
@@ -26,9 +27,9 @@ export class SupportController {
   createTicket(
     @Body() createSupportTicketDto: CreateSupportTicketDto,
     @TenantId() tenantId: string,
-    @Query('userId') userId?: string,
+    @CurrentUser() user?: { userId?: string },
   ) {
-    return this.supportService.createTicket(createSupportTicketDto, tenantId, userId);
+    return this.supportService.createTicket(createSupportTicketDto, tenantId, user?.userId);
   }
 
   @Get()

@@ -40,3 +40,11 @@ Ayudar a negocios a llevar:
 - Facturas
 - Inventario
 - Dashboard base
+
+## Engineering workflow docs
+- `docs/engineering-workflow.md`
+- `docs/module-implementation-checklist.md`
+- `docs/testing-workflow.md`
+- `docs/api-conventions.md`
+- `docs/frontend-integration-plan.md`
+- `docs/contribution-delivery-discipline.md`

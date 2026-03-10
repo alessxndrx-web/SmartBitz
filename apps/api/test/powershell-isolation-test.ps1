@@ -107,7 +107,7 @@ function Test-BasicSecurity {
     $totalTests++
     Write-Host ""
     Write-Host "🔍 Test 4: Registration endpoint validation" -ForegroundColor Yellow
-    $result4 = Invoke-ApiRequest -Method "POST" -Endpoint "/auth/register" -Body '{"fullName":"Test User","email":"test@example.com","password":"password123","role":"owner","tenantSlug":"nonexistent"}'
+    $result4 = Invoke-ApiRequest -Method "POST" -Endpoint "/auth/register" -Body '{"fullName":"Test User","email":"test@example.com","password":"password123","role":"tenant_owner","tenantSlug":"nonexistent"}'
     if (-not $result4.Success -and $result4.Status -eq 401 -and $result4.Error.message -like "*Tenant not found*") {
         Write-Host "✅ PASS: Registration validates tenant existence" -ForegroundColor Green
         $passedTests++

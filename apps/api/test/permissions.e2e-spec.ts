@@ -33,7 +33,7 @@ describe('Permissions (data-level)', () => {
     const ownerRole = await prisma.role.create({
       data: {
         tenantId: tenant.id,
-        name: 'owner',
+        name: 'tenant_owner',
         description: 'Owner role',
       },
     });
@@ -41,7 +41,7 @@ describe('Permissions (data-level)', () => {
     const operatorRole = await prisma.role.create({
       data: {
         tenantId: tenant.id,
-        name: 'operator',
+        name: 'staff',
         description: 'Operator role',
       },
     });
@@ -60,7 +60,7 @@ describe('Permissions (data-level)', () => {
         fullName: 'Operator User',
         email: `operator-${Date.now()}@example.com`,
         password: 'hashed',
-        role: 'operator',
+        role: 'staff',
       },
     });
 

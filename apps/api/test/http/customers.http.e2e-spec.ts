@@ -2,39 +2,7 @@ import * as request from 'supertest';
 import { INestApplication } from '@nestjs/common';
 import { createTestApp } from './test-app';
 import { prisma } from '../setup';
-
-async function seedRoleWithPermissions(params: {
-  tenantId: string;
-  roleName: string;
-  permissions: Array<{ module: string; action: string; name?: string }>;
-}) {
-  const perms = await Promise.all(
-    params.permissions.map((p) =>
-      prisma.permission.create({
-        data: {
-          tenantId: params.tenantId,
-          name: p.name || `${p.module}:${p.action}`,
-          module: p.module,
-          action: p.action,
-        },
-      }),
-    ),
-  );
-
-  const role = await prisma.role.create({
-    data: {
-      tenantId: params.tenantId,
-      name: params.roleName,
-      description: params.roleName,
-    },
-  });
-
-  await prisma.rolePermission.createMany({
-    data: perms.map((perm) => ({ roleId: role.id, permissionId: perm.id })),
-  });
-
-  return { role, perms };
-}
+import { createTenant, seedRoleWithPermissions } from '../helpers/factories';
 
 describe('HTTP customers (auth + permissions + tenant isolation)', () => {
   let app: INestApplication;
@@ -48,19 +16,11 @@ describe('HTTP customers (auth + permissions + tenant isolation)', () => {
   });
 
   it('should allow create/list customers when permission is granted', async () => {
-    const tenant = await prisma.tenant.create({
-      data: {
-        name: 'Cust Tenant',
-        slug: `cust-tenant-${Date.now()}`,
-        ruc: 'CUST-123',
-        businessType: 'RETAIL',
-        subscriptionPlan: 'BASIC',
-      },
-    });
+    const tenant = await createTenant(prisma, 'Cust Tenant');
 
-    await seedRoleWithPermissions({
+    await seedRoleWithPermissions(prisma, {
       tenantId: tenant.id,
-      roleName: 'operator',
+      roleName: 'staff',
       permissions: [
         { module: 'customers', action: 'create' },
         { module: 'customers', action: 'read' },
@@ -76,7 +36,7 @@ describe('HTTP customers (auth + permissions + tenant isolation)', () => {
         fullName: 'Cust User',
         email,
         password,
-        role: 'operator',
+        role: 'staff',
         tenantSlug: tenant.slug,
       })
       .expect(201);
@@ -109,20 +69,12 @@ describe('HTTP customers (auth + permissions + tenant isolation)', () => {
   });
 
   it('should forbid access without required permission', async () => {
-    const tenant = await prisma.tenant.create({
-      data: {
-        name: 'NoPerm Tenant',
-        slug: `noperm-tenant-${Date.now()}`,
-        ruc: 'NP-123',
-        businessType: 'RETAIL',
-        subscriptionPlan: 'BASIC',
-      },
-    });
+    const tenant = await createTenant(prisma, 'NoPerm Tenant');
 
     // operator has only read, no create
-    await seedRoleWithPermissions({
+    await seedRoleWithPermissions(prisma, {
       tenantId: tenant.id,
-      roleName: 'operator',
+      roleName: 'staff',
       permissions: [{ module: 'customers', action: 'read' }],
     });
 
@@ -135,7 +87,7 @@ describe('HTTP customers (auth + permissions + tenant isolation)', () => {
         fullName: 'NoPerm User',
         email,
         password,
-        role: 'operator',
+        role: 'staff',
         tenantSlug: tenant.slug,
       })
       .expect(201);
@@ -155,33 +107,17 @@ describe('HTTP customers (auth + permissions + tenant isolation)', () => {
   });
 
   it('should not allow cross-tenant access to customer by id', async () => {
-    const tenantA = await prisma.tenant.create({
-      data: {
-        name: 'Tenant A',
-        slug: `tA-${Date.now()}`,
-        ruc: 'TA-1',
-        businessType: 'RETAIL',
-        subscriptionPlan: 'BASIC',
-      },
-    });
-    const tenantB = await prisma.tenant.create({
-      data: {
-        name: 'Tenant B',
-        slug: `tB-${Date.now()}`,
-        ruc: 'TB-1',
-        businessType: 'RETAIL',
-        subscriptionPlan: 'BASIC',
-      },
-    });
+    const tenantA = await createTenant(prisma, 'Tenant A');
+    const tenantB = await createTenant(prisma, 'Tenant B');
 
-    await seedRoleWithPermissions({
+    await seedRoleWithPermissions(prisma, {
       tenantId: tenantA.id,
-      roleName: 'operator',
+      roleName: 'staff',
       permissions: [{ module: 'customers', action: 'read' }],
     });
-    await seedRoleWithPermissions({
+    await seedRoleWithPermissions(prisma, {
       tenantId: tenantB.id,
-      roleName: 'operator',
+      roleName: 'staff',
       permissions: [{ module: 'customers', action: 'read' }],
     });
 
@@ -198,7 +134,7 @@ describe('HTTP customers (auth + permissions + tenant isolation)', () => {
         fullName: 'User B',
         email: emailB,
         password: passwordB,
-        role: 'operator',
+        role: 'staff',
         tenantSlug: tenantB.slug,
       })
       .expect(201);

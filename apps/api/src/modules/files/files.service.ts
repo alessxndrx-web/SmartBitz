@@ -89,8 +89,8 @@ export class FilesService {
     await this.storageProvider.delete(file.path, tenantId);
 
     // Soft delete from database
-    await this.prisma.file.update({
-      where: { id: fileId },
+    await this.prisma.file.updateMany({
+      where: { id: fileId, tenantId },
       data: { isActive: false },
     });
   }
@@ -151,20 +151,24 @@ export class FilesService {
       data.size = parseFloat(updateData.size.toString());
     }
 
-    return this.prisma.file.update({
-      where: { id },
+    await this.prisma.file.updateMany({
+      where: { id, tenantId },
       data,
     });
+
+    return this.findOne(id, tenantId);
   }
 
   async removeFile(id: string, tenantId: string) {
     await this.findOne(id, tenantId);
 
     // Soft delete
-    return this.prisma.file.update({
-      where: { id },
+    await this.prisma.file.updateMany({
+      where: { id, tenantId },
       data: { isActive: false },
     });
+
+    return { id, deleted: true };
   }
 
   async getStats(tenantId: string) {
