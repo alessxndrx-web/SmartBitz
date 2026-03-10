@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { BrandMark } from '@/components/ui/icon-system';
 
 const links = [
   { href: '/', label: 'Producto' },
@@ -11,8 +12,11 @@ export function MarketingHeader() {
     <header className="marketing-header">
       <div className="marketing-header-inner">
         <Link href="/" className="marketing-logo">
-          <span className="marketing-logo-dot" />
-          SmartBitz
+          <BrandMark className="brand-mark" aria-hidden="true" />
+          <span>
+            SmartBitz
+            <small>Operating System para pymes</small>
+          </span>
         </Link>
 
         <nav>

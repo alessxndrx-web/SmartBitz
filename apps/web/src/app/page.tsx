@@ -2,6 +2,26 @@ import Link from 'next/link';
 import { LinkButton } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { MarketingHeader } from '@/components/layout/marketing-header';
+import { AppIcon } from '@/components/ui/icon-system';
+
+const industries = [
+  { name: 'Retail', detail: 'Control de caja, rotación y márgenes por categoría.' },
+  { name: 'Servicios', detail: 'Seguimiento de clientes, tickets y facturación recurrente.' },
+  { name: 'Floristerías', detail: 'Inventario perecedero, pedidos rápidos y entregas.' },
+  { name: 'Electrónica', detail: 'SKU críticos, garantías y ventas por canal.' },
+];
+
+const steps = [
+  'Conecta ventas, clientes e inventario en minutos.',
+  'Activa alertas e insights según tipo de negocio.',
+  'Opera con decisiones diarias desde un command center.',
+];
+
+const planPreview = [
+  { name: 'Starter', price: 'US$19', note: 'Base operativa' },
+  { name: 'Growth', price: 'US$49', note: 'Más inteligencia y control' },
+  { name: 'Scale', price: 'Custom', note: 'Operación multi-sucursal' },
+];
 
 export default function MarketingPage() {
   return (
@@ -11,7 +31,7 @@ export default function MarketingPage() {
       <section className="hero premium-hero">
         <div className="hero-copy">
           <p className="hero-eyebrow">SmartBitz · Plataforma operativa para pymes de Nicaragua y LATAM</p>
-          <h1>Deja de administrar con intuición: opera con un sistema que piensa como gerente.</h1>
+          <h1>Un sistema operativo empresarial para gestionar crecimiento, riesgo y ejecución.</h1>
           <p>
             SmartBitz integra ventas, cobros, inventario y servicio en un command center premium que reduce riesgo,
             aumenta margen y profesionaliza decisiones diarias.
@@ -52,6 +72,71 @@ export default function MarketingPage() {
             <span className="status-badge status-badge-warning">3 riesgos de stock</span>
           </div>
         </article>
+      </section>
+
+      <section className="showcase-grid">
+        <Card className="showcase-main" title="Product Showcase" description="Cómo se ve operar con SmartBitz en el día a día.">
+          <div className="showcase-columns">
+            <article>
+              <p className="hero-eyebrow">Business Overview</p>
+              <h4>Estado real de caja, cobranza e inventario</h4>
+              <p>Sin cambiar de módulo: métricas clave, riesgos y actividad en un solo panel ejecutivo.</p>
+            </article>
+            <article>
+              <p className="hero-eyebrow">Action Layer</p>
+              <h4>Recomendaciones listas para ejecutar</h4>
+              <p>El sistema propone acciones priorizadas para proteger margen y acelerar crecimiento.</p>
+            </article>
+          </div>
+        </Card>
+        <Card title="How it works" description="Implementación en 3 pasos">
+          <ol className="steps-list">
+            {steps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+        </Card>
+      </section>
+
+      <section className="industry-grid">
+        <header>
+          <p className="hero-eyebrow">Industry Adaptation</p>
+          <h2>Un núcleo, múltiples verticales de negocio</h2>
+        </header>
+        <div className="feature-section brand-feature-grid">
+          {industries.map((industry) => (
+            <Card key={industry.name} title={industry.name} description="Operación adaptada al contexto comercial.">
+              <p>{industry.detail}</p>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      <section className="trust-strip">
+        <Card title="Confiabilidad operacional" description="Infraestructura, seguridad y continuidad para negocio real.">
+          <div className="trust-items">
+            <span><AppIcon name="plan" className="inline-icon" />Multi-tenant seguro</span>
+            <span><AppIcon name="support" className="inline-icon" />Soporte con SLA</span>
+            <span><AppIcon name="dashboard" className="inline-icon" />Visión ejecutiva diaria</span>
+          </div>
+        </Card>
+      </section>
+
+      <section className="landing-pricing-teaser">
+        <header>
+          <p className="hero-eyebrow">Pricing</p>
+          <h2>Planes pensados para crecer con disciplina operativa</h2>
+        </header>
+        <div className="pricing-teaser-grid">
+          {planPreview.map((plan) => (
+            <article key={plan.name} className="pricing-teaser-card">
+              <p>{plan.name}</p>
+              <strong>{plan.price}</strong>
+              <small>{plan.note}</small>
+            </article>
+          ))}
+        </div>
+        <LinkButton href="/pricing" variant="secondary">Ver comparación completa</LinkButton>
       </section>
 
       <section className="dashboard-preview premium-preview">
