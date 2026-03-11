@@ -35,3 +35,11 @@ export interface PlatformAdminOverviewResponse {
     count: number;
   }>;
 }
+
+
+export interface HealthResponse {
+  status: string;
+  statusCode: number;
+  timestamp: string;
+  [key: string]: unknown;
+}

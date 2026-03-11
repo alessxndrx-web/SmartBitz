@@ -4,6 +4,7 @@ import { MetricCard } from '@/features/dashboard/components/metric-card';
 import { DashboardMotion } from '@/components/motion/dashboard-motion';
 import { RevenueChart } from '@/features/dashboard/components/revenue-chart';
 import { AppIcon } from '@/components/ui/icon-system';
+import { getPaymentsStats } from '@/lib/api';
 import {
   tenantContext,
   businessTypeLabels,
@@ -12,6 +13,7 @@ import {
   recentActivity,
   businessInsights,
   inventoryAlerts,
+  fallbackPaymentsStats,
 } from '@/features/dashboard/data/mock-dashboard';
 
 const activityIcons = {
@@ -28,7 +30,38 @@ const actionLines = [
   'Ejecutar campaña de retención para clientes inactivos',
 ];
 
-export default function DashboardPage() {
+async function loadPaymentsStats() {
+  try {
+    return {
+      stats: await getPaymentsStats(),
+      source: 'api' as const,
+    };
+  } catch {
+    return {
+      stats: fallbackPaymentsStats,
+      source: 'mock' as const,
+    };
+  }
+}
+
+export default async function DashboardPage() {
+  const paymentsData = await loadPaymentsStats();
+
+  const metrics = summaryKpis.map((metric) => {
+    if (metric.label !== 'Ventas del mes') {
+      return metric;
+    }
+
+    const value = `C$ ${paymentsData.stats.totalCollected.toLocaleString('es-NI', { maximumFractionDigits: 2 })}`;
+    const trend = `${paymentsData.stats.totalPayments} pagos`;
+
+    return {
+      ...metric,
+      value,
+      trend,
+    };
+  });
+
   return (
     <PageContainer
       title={`Centro de mando · ${tenantContext.tenantName}`}
@@ -38,6 +71,7 @@ export default function DashboardPage() {
         <section className="decision-hero motion-fade-up">
           <p className="executive-eyebrow">Main Insight</p>
           <h2>Ingresos sólidos esta semana; el riesgo principal está en inventario y cobranza.</h2>
+          <small>Fuente pagos: {paymentsData.source === 'api' ? 'API en vivo' : 'mock fallback'}</small>
         </section>
 
         <section className="decision-chart motion-fade-up">
@@ -48,7 +82,7 @@ export default function DashboardPage() {
         </section>
 
         <section className="decision-metrics motion-fade-up">
-          {summaryKpis.map((metric) => (
+          {metrics.map((metric) => (
             <MetricCard key={metric.label} label={metric.label} value={metric.value} trend={metric.trend} tone={metric.tone} />
           ))}
         </section>

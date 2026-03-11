@@ -19,6 +19,15 @@ describe('HTTP /health', () => {
     expect(res.body).toHaveProperty('timestamp');
   });
 
+
+
+  it('GET /api/health should return matching http status and payload statusCode', async () => {
+    const res = await request(app.getHttpServer()).get('/api/health');
+    expect([200, 503]).toContain(res.status);
+    expect(res.body).toHaveProperty('statusCode', res.status);
+    expect(res.body).toHaveProperty('status');
+  });
+
   it('GET /api/healthz should respond with ok', async () => {
     const res = await request(app.getHttpServer()).get('/api/healthz').expect(200);
     expect(res.body).toHaveProperty('ok', true);

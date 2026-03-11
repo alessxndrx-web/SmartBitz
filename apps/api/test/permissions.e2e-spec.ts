@@ -78,5 +78,37 @@ describe('Permissions (data-level)', () => {
 
     expect([...permissions].sort()).toEqual(['customers:read']);
   });
+
+  it('initializeDefaultRoles should not delete custom roles for the tenant', async () => {
+    const tenant = await prisma.tenant.create({
+      data: {
+        name: 'Init Tenant',
+        slug: `init-tenant-${Date.now()}`,
+        ruc: 'INIT-123',
+        businessType: 'RETAIL',
+        subscriptionPlan: 'BASIC',
+      },
+    });
+
+    const customRole = await prisma.role.create({
+      data: {
+        tenantId: tenant.id,
+        name: 'custom_analyst',
+        description: 'Custom role to preserve',
+      },
+    });
+
+    const { RolesService } = await import('../src/modules/roles/roles.service');
+    const rolesService = new RolesService(prisma as any);
+
+    await rolesService.initializeDefaultRoles(tenant.id);
+
+    const stillExists = await prisma.role.findFirst({
+      where: { id: customRole.id, tenantId: tenant.id },
+    });
+
+    expect(stillExists).not.toBeNull();
+  });
+
 });
 

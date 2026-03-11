@@ -25,7 +25,28 @@ Use helpers under `apps/api/test/helpers`:
 
 Guideline: prefer helpers for repeated setup logic before adding new one-off setup blocks in test files.
 
-## 4) Required test types for new modules
+## 4) PostgreSQL test baseline (Phase 1)
+
+The test bootstrap now requires PostgreSQL and performs deterministic reset using Prisma schema push.
+
+Environment variables:
+
+- `TEST_DATABASE_URL` (preferred for tests)
+- fallback: `DATABASE_URL`
+
+Example:
+
+```bash
+export TEST_DATABASE_URL="postgresql://smartbitz:smartbitz@localhost:5432/smartbitz_test?schema=public"
+```
+
+Setup behavior in `test/setup.ts`:
+- validates PostgreSQL URL
+- waits for PostgreSQL readiness
+- runs `prisma db push --force-reset --skip-generate`
+- truncates tenant module tables before each test
+
+## 5) Required test types for new modules
 
 ### Tenant-scoped module
 - Authenticated happy path test.
@@ -41,18 +62,22 @@ Guideline: prefer helpers for repeated setup logic before adding new one-off set
 - Response shape test.
 - Tenant scoping test (no cross-tenant leakage).
 
-## 5) Test writing standards
+## 6) Test writing standards
 
 - Keep tests deterministic and isolated.
 - Reuse `setup.ts` database lifecycle.
 - Avoid shelling out unless validating integration scripts.
 - Prefer small explicit assertions over broad snapshots.
 
-## 6) Suggested command sequence
+## 7) Suggested command sequence
 
+- Start local infrastructure (from repo root):
+  - `docker compose up -d postgres redis`
 - Typecheck/lint:
   - `npm --prefix apps/api run lint`
 - Focused e2e during development:
   - `npm --prefix apps/api run test:e2e -- --runInBand test/http/<spec>.ts`
+- Critical Phase 1 e2e checks:
+  - `npm --prefix apps/api run test:e2e:critical`
 - Broader suite before merge:
   - `npm --prefix apps/api run test:e2e`

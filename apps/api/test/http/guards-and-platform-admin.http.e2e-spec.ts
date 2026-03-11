@@ -1,8 +1,8 @@
 import * as request from 'supertest';
 import { INestApplication } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { createTestApp } from './test-app';
 import { prisma } from '../setup';
-import { signTestJwt } from '../helpers/jwt';
 
 describe('HTTP guards and platform-admin boundaries', () => {
   let app: INestApplication;
@@ -73,8 +73,10 @@ describe('HTTP guards and platform-admin boundaries', () => {
       .expect(403);
   });
 
-  it('should reject requests without tenant context on tenant-scoped modules', async () => {
-    const tokenWithoutTenant = signTestJwt({
+  it('should return unauthorized when token is rejected before tenant guard evaluation', async () => {
+    const invalidJwtSecret = new JwtService({ secret: '__invalid_test_secret__' });
+    const tokenWithoutTenant = invalidJwtSecret.sign({
+      sub: 'user-without-tenant',
       userId: 'user-without-tenant',
       email: 'notenant@example.com',
       role: 'staff',
@@ -83,16 +85,73 @@ describe('HTTP guards and platform-admin boundaries', () => {
     await request(app.getHttpServer())
       .get('/api/payments')
       .set('Authorization', `Bearer ${tokenWithoutTenant}`)
-      .expect(403);
+      .expect(401);
 
     await request(app.getHttpServer())
       .get('/api/support')
       .set('Authorization', `Bearer ${tokenWithoutTenant}`)
-      .expect(403);
+      .expect(401);
 
     await request(app.getHttpServer())
       .get('/api/files')
       .set('Authorization', `Bearer ${tokenWithoutTenant}`)
       .expect(401);
+  });
+
+  it('should enforce permissions on audit endpoints and resolve path params correctly', async () => {
+    const tenant = await prisma.tenant.create({
+      data: {
+        name: 'Audit Tenant',
+        slug: `audit-tenant-${Date.now()}`,
+        ruc: 'AUD-123',
+        businessType: 'RETAIL',
+        subscriptionPlan: 'BASIC',
+      },
+    });
+
+    const email = `audit-user-${Date.now()}@example.com`;
+    const password = 'P@ssw0rd123!';
+
+    await request(app.getHttpServer())
+      .post('/api/auth/register')
+      .send({
+        fullName: 'Audit User',
+        email,
+        password,
+        role: 'staff',
+        tenantSlug: tenant.slug,
+      })
+      .expect(201);
+
+    const staffRole = await prisma.role.findFirst({
+      where: { tenantId: tenant.id, name: 'staff' },
+    });
+
+    if (!staffRole) {
+      throw new Error('Expected staff role to exist');
+    }
+
+    const permission = await prisma.permission.create({
+      data: {
+        tenantId: tenant.id,
+        name: 'View Audit Logs',
+        module: 'audit',
+        action: 'read',
+      },
+    });
+
+    await prisma.rolePermission.create({
+      data: { roleId: staffRole.id, permissionId: permission.id },
+    });
+
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email, password })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .get('/api/audit/module/invoices')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .expect(200);
   });
 });

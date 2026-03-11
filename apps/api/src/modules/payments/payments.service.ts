@@ -256,7 +256,7 @@ export class PaymentsService {
         data: { status: newStatus },
       });
 
-      return { message: 'Payment deleted successfully', newStatus };
+      return { id, deleted: true, message: 'Payment deleted successfully', newStatus };
     });
   }
 

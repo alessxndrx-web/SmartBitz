@@ -1,10 +1,21 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateAuditLogDto } from './dto/create-audit-log.dto';
+import { NotificationsQueueService } from '../../jobs/notifications/notifications-queue.service';
 
 @Injectable()
 export class AuditService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly notificationsQueue: NotificationsQueueService,
+  ) {}
+
+  private ensureTenantId(tenantId: string) {
+    if (!tenantId) {
+      throw new ForbiddenException('Tenant context required');
+    }
+  }
+
 
   async createLog(
     createAuditLogDto: CreateAuditLogDto,
@@ -13,6 +24,7 @@ export class AuditService {
     ipAddress?: string,
     userAgent?: string,
   ) {
+    this.ensureTenantId(tenantId);
     return this.prisma.auditLog.create({
       data: {
         ...createAuditLogDto,
@@ -37,7 +49,9 @@ export class AuditService {
     userAgent?: string,
     notes?: string,
   ) {
-    return this.createLog(
+    this.ensureTenantId(tenantId);
+
+    const log = await this.createLog(
       {
         module,
         action,
@@ -52,9 +66,22 @@ export class AuditService {
       ipAddress,
       userAgent,
     );
+
+    void this.notificationsQueue.enqueueAuditEvent({
+      tenantId,
+      module,
+      action,
+      userId,
+      entityId,
+      notes,
+      createdAt: new Date().toISOString(),
+    });
+
+    return log;
   }
 
   async findAll(tenantId: string) {
+    this.ensureTenantId(tenantId);
     return this.prisma.auditLog.findMany({
       where: { tenantId },
       orderBy: { createdAt: 'desc' },
@@ -63,6 +90,7 @@ export class AuditService {
   }
 
   async findByModule(tenantId: string, module: string) {
+    this.ensureTenantId(tenantId);
     return this.prisma.auditLog.findMany({
       where: { tenantId, module },
       orderBy: { createdAt: 'desc' },
@@ -71,6 +99,7 @@ export class AuditService {
   }
 
   async findByEntity(tenantId: string, entityType: string, entityId: string) {
+    this.ensureTenantId(tenantId);
     return this.prisma.auditLog.findMany({
       where: { tenantId, entityType, entityId },
       orderBy: { createdAt: 'desc' },
@@ -79,6 +108,7 @@ export class AuditService {
   }
 
   async findByUser(tenantId: string, userId: string) {
+    this.ensureTenantId(tenantId);
     return this.prisma.auditLog.findMany({
       where: { tenantId, userId },
       orderBy: { createdAt: 'desc' },
@@ -87,6 +117,7 @@ export class AuditService {
   }
 
   async findRecent(tenantId: string, hours: number = 24) {
+    this.ensureTenantId(tenantId);
     const since = new Date();
     since.setHours(since.getHours() - hours);
 
@@ -103,6 +134,7 @@ export class AuditService {
   }
 
   async getStats(tenantId: string) {
+    this.ensureTenantId(tenantId);
     const since = new Date();
     since.setHours(since.getHours() - 24);
 

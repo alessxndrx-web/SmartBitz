@@ -114,14 +114,27 @@ export class RolesService {
       throw new NotFoundException('One or more permissions were not found for this tenant');
     }
 
-    const rolePermissions = permissionIds.map(permissionId => ({
-      roleId,
-      permissionId,
-    }));
-
-    await this.prisma.rolePermission.createMany({
-      data: rolePermissions,
+    const existingAssignments = await this.prisma.rolePermission.findMany({
+      where: {
+        roleId,
+        permissionId: { in: permissionIds },
+      },
+      select: { permissionId: true },
     });
+
+    const assignedPermissionIds = new Set(existingAssignments.map((item) => item.permissionId));
+    const rolePermissions = permissionIds
+      .filter((permissionId) => !assignedPermissionIds.has(permissionId))
+      .map(permissionId => ({
+        roleId,
+        permissionId,
+      }));
+
+    if (rolePermissions.length > 0) {
+      await this.prisma.rolePermission.createMany({
+        data: rolePermissions,
+      });
+    }
 
     return this.findRoleById(roleId, tenantId);
   }
@@ -268,6 +281,64 @@ export class RolesService {
     });
   }
 
+
+  private async ensurePermissionExists(
+    tenantId: string,
+    permission: { name: string; module: string; action: string },
+  ) {
+    const existing = await this.prisma.permission.findFirst({
+      where: {
+        tenantId,
+        module: permission.module,
+        action: permission.action,
+      },
+    });
+
+    if (existing) {
+      await this.prisma.permission.updateMany({
+        where: { id: existing.id, tenantId },
+        data: {
+          name: permission.name,
+          isActive: true,
+        },
+      });
+
+      return this.prisma.permission.findFirst({ where: { id: existing.id, tenantId } });
+    }
+
+    return this.prisma.permission.create({
+      data: {
+        ...permission,
+        tenantId,
+      },
+    });
+  }
+
+  private async ensureSystemRoleExists(tenantId: string, roleName: string, description: string) {
+    const existing = await this.prisma.role.findFirst({
+      where: { tenantId, name: roleName },
+    });
+
+    if (existing) {
+      await this.prisma.role.updateMany({
+        where: { id: existing.id, tenantId },
+        data: {
+          description,
+          isActive: true,
+        },
+      });
+      return this.prisma.role.findFirst({ where: { id: existing.id, tenantId } });
+    }
+
+    return this.prisma.role.create({
+      data: {
+        name: roleName,
+        description,
+        tenantId,
+      },
+    });
+  }
+
   // Initialize default roles and permissions for a tenant
   async initializeDefaultRoles(tenantId: string) {
     const defaultPermissions = [
@@ -306,57 +377,38 @@ export class RolesService {
       { name: 'Update Roles', module: 'roles', action: 'update' },
       { name: 'Delete Roles', module: 'roles', action: 'delete' },
       { name: 'View Platform Admin Overview', module: 'platform-admin', action: 'read' },
+      { name: 'View Audit Logs', module: 'audit', action: 'read' },
     ];
 
-    const existingRoles = await this.prisma.role.findMany({
-      where: { tenantId },
-      select: { id: true },
-    });
+    const permissions = (await Promise.all(
+      defaultPermissions.map((permission) => this.ensurePermissionExists(tenantId, permission)),
+    )).filter((permission): permission is NonNullable<typeof permission> => Boolean(permission));
 
-    await this.prisma.rolePermission.deleteMany({
-      where: { roleId: { in: existingRoles.map((role) => role.id) } },
-    });
-    await this.prisma.role.deleteMany({ where: { tenantId } });
-    await this.prisma.permission.deleteMany({ where: { tenantId } });
-
-    const permissions = await Promise.all(
-      defaultPermissions.map((permission) =>
-        this.prisma.permission.create({
-          data: {
-            ...permission,
-            tenantId,
-          },
-        }),
-      ),
+    const tenantOwnerRole = await this.ensureSystemRoleExists(
+      tenantId,
+      'tenant_owner',
+      'Full access to tenant features',
     );
 
-    const tenantOwnerRole = await this.prisma.role.create({
-      data: {
-        name: 'tenant_owner',
-        description: 'Full access to tenant features',
-        tenantId,
-      },
-    });
+    const tenantAdminRole = await this.ensureSystemRoleExists(
+      tenantId,
+      'tenant_admin',
+      'Administrative tenant access',
+    );
 
-    const tenantAdminRole = await this.prisma.role.create({
-      data: {
-        name: 'tenant_admin',
-        description: 'Administrative tenant access',
-        tenantId,
-      },
-    });
-
-    const staffRole = await this.prisma.role.create({
-      data: {
-        name: 'staff',
-        description: 'Operational staff access',
-        tenantId,
-      },
-    });
+    const staffRole = await this.ensureSystemRoleExists(
+      tenantId,
+      'staff',
+      'Operational staff access',
+    );
 
     const tenantScopedPermissions = permissions.filter(
       (p) => !['tenants', 'platform-admin'].includes(p.module),
     );
+
+    if (!tenantOwnerRole || !tenantAdminRole || !staffRole) {
+      throw new NotFoundException('Failed to initialize default roles');
+    }
 
     await this.assignPermissionsToRole(tenantOwnerRole.id, tenantId, tenantScopedPermissions.map((p) => p.id));
 

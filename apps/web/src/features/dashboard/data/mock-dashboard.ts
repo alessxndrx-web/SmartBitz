@@ -106,3 +106,9 @@ export const businessInsights = [
     confidence: 'Media · 74%',
   },
 ] as const;
+
+
+export const fallbackPaymentsStats = {
+  totalPayments: 268,
+  totalCollected: 182450,
+} as const;

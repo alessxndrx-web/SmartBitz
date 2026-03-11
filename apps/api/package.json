@@ -12,7 +12,12 @@
     "test:isolation": "jest test/tenant-isolation.e2e-spec.ts --verbose",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "tsx src/database/prisma/seeds/seed.ts"
+    "prisma:seed": "tsx src/database/prisma/seeds/seed.ts",
+    "worker": "tsx src/worker.ts",
+    "infra:up": "docker compose -f ../../docker-compose.yml up -d postgres redis",
+    "infra:down": "docker compose -f ../../docker-compose.yml down",
+    "infra:logs": "docker compose -f ../../docker-compose.yml logs -f postgres redis",
+    "test:e2e:critical": "jest --config ./test/jest-e2e.json --runInBand test/http/auth.http.e2e-spec.ts test/http/guards-and-platform-admin.http.e2e-spec.ts test/http/tenant-modules-access.http.e2e-spec.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",

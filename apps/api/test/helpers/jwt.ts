@@ -1,6 +1,6 @@
 import { JwtService } from '@nestjs/jwt';
 
-const jwtService = new JwtService({ secret: 'dev-jwt-secret' });
+const jwtService = new JwtService({ secret: process.env.JWT_SECRET || 'test-jwt-secret' });
 
 export function signTestJwt(payload: {
   userId: string;

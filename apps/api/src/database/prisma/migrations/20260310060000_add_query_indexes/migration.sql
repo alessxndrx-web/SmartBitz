@@ -1,0 +1,21 @@
+-- Query performance indexes for tenant-scoped read patterns
+CREATE INDEX "Customer_tenantId_createdAt_idx" ON "Customer"("tenantId", "createdAt");
+CREATE INDEX "Invoice_tenantId_status_idx" ON "Invoice"("tenantId", "status");
+CREATE INDEX "Invoice_tenantId_createdAt_idx" ON "Invoice"("tenantId", "createdAt");
+CREATE INDEX "InvoiceItem_invoiceId_createdAt_idx" ON "InvoiceItem"("invoiceId", "createdAt");
+CREATE INDEX "InventoryItem_tenantId_isActive_idx" ON "InventoryItem"("tenantId", "isActive");
+CREATE INDEX "InventoryItem_tenantId_createdAt_idx" ON "InventoryItem"("tenantId", "createdAt");
+CREATE INDEX "Purchase_tenantId_status_idx" ON "Purchase"("tenantId", "status");
+CREATE INDEX "Purchase_tenantId_createdAt_idx" ON "Purchase"("tenantId", "createdAt");
+CREATE INDEX "Role_tenantId_name_idx" ON "Role"("tenantId", "name");
+CREATE INDEX "Permission_tenantId_module_action_idx" ON "Permission"("tenantId", "module", "action");
+CREATE INDEX "AuditLog_tenantId_createdAt_idx" ON "AuditLog"("tenantId", "createdAt");
+CREATE INDEX "AuditLog_tenantId_module_createdAt_idx" ON "AuditLog"("tenantId", "module", "createdAt");
+CREATE INDEX "AuditLog_tenantId_userId_createdAt_idx" ON "AuditLog"("tenantId", "userId", "createdAt");
+CREATE INDEX "AuditLog_tenantId_entityType_entityId_idx" ON "AuditLog"("tenantId", "entityType", "entityId");
+CREATE INDEX "SupportTicket_tenantId_status_idx" ON "SupportTicket"("tenantId", "status");
+CREATE INDEX "SupportTicket_tenantId_createdAt_idx" ON "SupportTicket"("tenantId", "createdAt");
+CREATE INDEX "File_tenantId_isActive_idx" ON "File"("tenantId", "isActive");
+CREATE INDEX "File_tenantId_createdAt_idx" ON "File"("tenantId", "createdAt");
+CREATE INDEX "TenantMembership_userId_createdAt_idx" ON "TenantMembership"("userId", "createdAt");
+CREATE INDEX "Payment_invoiceId_createdAt_idx" ON "Payment"("invoiceId", "createdAt");

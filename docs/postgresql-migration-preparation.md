@@ -1,35 +1,37 @@
-# PostgreSQL Migration Preparation
+# PostgreSQL Migration Strategy (Phase 1 Infrastructure)
 
-This project currently uses SQLite in development/test (`DATABASE_URL` in `.env.example` and Prisma schema datasource), while product targets PostgreSQL + Redis.
+SmartBitz now targets PostgreSQL as the primary datasource in Prisma schema.
 
-## Current compatibility checks
-- IDs use `cuid()` and are database-portable.
-- Relations use explicit foreign keys with clear `onDelete` rules.
-- Tenant-critical uniqueness constraints already exist:
-  - `Invoice @@unique([tenantId, number])`
-  - `TenantMembership @@unique([userId, tenantId])`
+## Why this strategy
+Existing historical Prisma SQL migrations were generated for SQLite syntax (`DATETIME`, etc.).
+Applying those files directly with `prisma migrate deploy` on PostgreSQL is risky and can fail.
 
-## Pre-migration checklist
-1. Keep Prisma schema relation model as-is (already portable to PostgreSQL).
-2. Remove SQLite-only assumptions from scripts and docs.
-3. Ensure production environment validation requires PostgreSQL DSN.
-4. Add supporting indexes for high-volume tenant queries before cutover:
-   - `Customer(tenantId)`
-   - `InventoryItem(tenantId, isActive)`
-   - `Invoice(tenantId, status)`
-   - `Purchase(tenantId, status)`
-   - `SupportTicket(tenantId, status)`
-5. Validate migration replay in a clean PostgreSQL database.
+To keep Phase 1 safe and unblock infrastructure work, we use a **two-step strategy**:
 
-## Suggested migration runbook
-1. Add a PostgreSQL environment file (`DATABASE_URL=postgresql://...`).
-2. Run `pnpm --filter @smartbitz/api prisma:generate`.
-3. Run `pnpm --filter @smartbitz/api prisma:migrate dev` in a staging DB.
-4. Run API test suite against PostgreSQL DSN.
-5. Execute tenant isolation and permissions e2e tests.
-6. Promote migrations to production with `prisma migrate deploy`.
+1. **Schema-first reset for test/staging validation**
+   - Use `prisma db push --force-reset` against PostgreSQL in automated tests.
+   - This validates model compatibility and query behavior now.
 
-## Risks to monitor
-- Behavior changes in text search (`contains`) between SQLite and PostgreSQL collations.
-- Decimal/float precision on monetary fields currently modeled as `Float`.
-- Data volume/performance assumptions for dashboards without pagination.
+2. **PostgreSQL migration baseline before production cutover**
+   - Create a clean PostgreSQL baseline migration from current schema.
+   - Mark/retire legacy SQLite migration history in a controlled rollout.
+   - From that point forward, use `prisma migrate deploy` only with PostgreSQL-native migration files.
+
+## Execution plan
+1. Configure `DATABASE_URL` with PostgreSQL DSN in all environments.
+2. Run Prisma client generation with the PostgreSQL provider.
+3. Run API tests against PostgreSQL (test setup now enforces PostgreSQL URL and resets schema via `db push`).
+4. Validate tenant isolation and RBAC suites on PostgreSQL.
+5. Create and validate PostgreSQL baseline migration in staging.
+6. Ship production cutover with backup + rollback window.
+
+## Risk controls
+- Keep backup snapshot before any production migration.
+- Rehearse rollback to pre-cutover DB state.
+- Monitor query latency and index usage after cutover.
+- Pay special attention to money precision fields currently modeled as `Float`.
+
+## Follow-up actions (post Phase 1)
+- Convert monetary fields from `Float` to `Decimal` where appropriate.
+- Add migration lint/check in CI to reject provider-incompatible SQL.
+- Add staging smoke tests for migration + seed + e2e as release gate.
