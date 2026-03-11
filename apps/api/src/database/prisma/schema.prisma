@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -19,6 +19,7 @@ model Tenant {
   updatedAt        DateTime @updatedAt
 
   users            User[]
+  memberships      TenantMembership[]
   customers        Customer[]
   invoices         Invoice[]
   inventoryItems   InventoryItem[]
@@ -45,6 +46,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  memberships TenantMembership[]
 }
 
 model Customer {
@@ -61,6 +63,8 @@ model Customer {
 
   tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   invoices Invoice[]
+
+  @@index([tenantId, createdAt])
 }
 
 model Invoice {
@@ -83,6 +87,8 @@ model Invoice {
   payments Payment[]
 
   @@unique([tenantId, number])
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
 }
 
 model InvoiceItem {
@@ -98,6 +104,8 @@ model InvoiceItem {
   updatedAt   DateTime @updatedAt
 
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId, createdAt])
 }
 
 model InventoryItem {
@@ -119,6 +127,9 @@ model InventoryItem {
   category Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   movements InventoryMovement[]
   purchaseItems PurchaseItem[]
+
+  @@index([tenantId, isActive])
+  @@index([tenantId, createdAt])
 }
 
 model Category {
@@ -168,6 +179,9 @@ model Purchase {
   tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   supplier  Supplier     @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   items     PurchaseItem[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
 }
 
 model PurchaseItem {
@@ -212,6 +226,8 @@ model Role {
 
   tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   rolePermissions RolePermission[]
+
+  @@index([tenantId, name])
 }
 
 model Permission {
@@ -227,6 +243,8 @@ model Permission {
 
   tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   rolePermissions RolePermission[]
+
+  @@index([tenantId, module, action])
 }
 
 model RolePermission {
@@ -257,6 +275,11 @@ model AuditLog {
   createdAt   DateTime @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, module, createdAt])
+  @@index([tenantId, userId, createdAt])
+  @@index([tenantId, entityType, entityId])
 }
 
 model SupportTicket {
@@ -274,6 +297,9 @@ model SupportTicket {
   updatedAt   DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
 }
 
 model File {
@@ -292,6 +318,24 @@ model File {
   updatedAt   DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, isActive])
+  @@index([tenantId, createdAt])
+}
+
+
+model TenantMembership {
+  id        String   @id @default(cuid())
+  userId    String
+  tenantId  String
+  role      String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tenantId])
+  @@index([userId, createdAt])
 }
 
 model Payment {
@@ -306,4 +350,6 @@ model Payment {
   updatedAt   DateTime @updatedAt
 
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId, createdAt])
 }

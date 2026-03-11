@@ -67,52 +67,72 @@ export class SupportService {
     await this.findOne(id, tenantId);
 
     const updateData: any = { status };
-    
+
     if (status === TicketStatus.RESOLVED) {
       updateData.resolvedAt = new Date();
     } else if (status === TicketStatus.OPEN || status === TicketStatus.IN_PROGRESS || status === TicketStatus.CLOSED) {
       updateData.resolvedAt = null;
     }
 
-    return this.prisma.supportTicket.update({
-      where: { id },
+    await this.prisma.supportTicket.updateMany({
+      where: { id, tenantId },
       data: updateData,
     });
+
+    return this.findOne(id, tenantId);
   }
 
   async assignTicket(id: string, assignedTo: string, tenantId: string) {
     await this.findOne(id, tenantId);
 
-    return this.prisma.supportTicket.update({
-      where: { id },
-      data: { 
+    await this.prisma.supportTicket.updateMany({
+      where: { id, tenantId },
+      data: {
         assignedTo,
         status: TicketStatus.IN_PROGRESS,
       },
     });
+
+    return this.findOne(id, tenantId);
   }
 
   async updateTicket(id: string, updateData: Partial<CreateSupportTicketDto>, tenantId: string) {
     await this.findOne(id, tenantId);
 
-    return this.prisma.supportTicket.update({
-      where: { id },
+    await this.prisma.supportTicket.updateMany({
+      where: { id, tenantId },
       data: updateData,
     });
+
+    return this.findOne(id, tenantId);
   }
 
   async removeTicket(id: string, tenantId: string) {
     await this.findOne(id, tenantId);
 
-    return this.prisma.supportTicket.delete({
-      where: { id },
+    await this.prisma.supportTicket.deleteMany({
+      where: { id, tenantId },
     });
+
+    return { id, deleted: true };
   }
 
   async getStats(tenantId: string) {
-    const [total, byStatus, byPriority, byCategory, recent] = await Promise.all([
+    const [total, open, active, byStatus, byPriority, byCategory] = await Promise.all([
       this.prisma.supportTicket.count({
         where: { tenantId },
+      }),
+      this.prisma.supportTicket.count({
+        where: {
+          tenantId,
+          status: TicketStatus.OPEN,
+        },
+      }),
+      this.prisma.supportTicket.count({
+        where: {
+          tenantId,
+          status: { not: TicketStatus.CLOSED },
+        },
       }),
       this.prisma.supportTicket.groupBy({
         by: ['status'],
@@ -126,23 +146,18 @@ export class SupportService {
       }),
       this.prisma.supportTicket.groupBy({
         by: ['category'],
-        where: { 
+        where: {
           tenantId,
           category: { not: null },
         },
         _count: { category: true },
       }),
-      this.prisma.supportTicket.count({
-        where: {
-          tenantId,
-          status: { not: TicketStatus.CLOSED },
-        },
-      }),
     ]);
 
     return {
       total,
-      open: recent,
+      open,
+      active,
       byStatus: byStatus.map(item => ({
         status: item.status,
         count: item._count.status,

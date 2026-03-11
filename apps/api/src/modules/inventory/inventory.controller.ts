@@ -13,12 +13,13 @@ import { InventoryService } from './inventory.service';
 import { CreateInventoryItemDto, CreateInventoryMovementDto } from './dto/create-inventory-item.dto';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { TenantGuard } from '../../common/guards/tenant.guard';
 import { PermissionsGuard } from '../roles/guards/permissions.guard';
 import { Permissions } from '../roles/decorators/permissions.decorator';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
 
 @Controller('inventory')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 

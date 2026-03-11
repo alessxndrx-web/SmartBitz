@@ -1,4 +1,5 @@
-import { Controller, Get, HttpStatus } from '@nestjs/common';
+import { Controller, Get, HttpStatus, Res } from '@nestjs/common';
+import { Response } from 'express';
 import { HealthService } from './health.service';
 
 @Controller('health')
@@ -6,19 +7,21 @@ export class HealthController {
   constructor(private readonly healthService: HealthService) {}
 
   @Get()
-  async check() {
+  async check(@Res({ passthrough: true }) res: Response) {
     const health = await this.healthService.getOverallHealth();
-    
+    const statusCode = health.status === 'healthy' ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;
+    res.status(statusCode);
+
     return {
       ...health,
-      statusCode: health.status === 'healthy' ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE,
+      statusCode,
     };
   }
 
   @Get('simple')
   async simpleCheck() {
     const health = await this.healthService.getOverallHealth();
-    
+
     return {
       status: health.status,
       timestamp: health.timestamp,

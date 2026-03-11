@@ -6,6 +6,7 @@ import { AppModule } from '../../src/app.module';
 export async function createTestApp(): Promise<INestApplication> {
   // Required by AuthModule/JwtStrategy at import time
   process.env.JWT_SECRET = process.env.JWT_SECRET || 'test_jwt_secret';
+  process.env.DATABASE_URL = process.env.DATABASE_URL || 'file:./src/database/prisma/dev.db';
   process.env.NODE_ENV = process.env.NODE_ENV || 'test';
 
   const moduleRef = await Test.createTestingModule({
