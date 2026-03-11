@@ -6,7 +6,7 @@ import { RolesModule } from '../roles/roles.module';
 @Module({
   imports: [RolesModule],
   controllers: [PaymentsController],
-  providers: [PaymentsService],
+  providers: [PaymentsService, PrismaService],
   exports: [PaymentsService],
 })
 export class PaymentsModule {}

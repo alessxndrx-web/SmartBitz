@@ -338,6 +338,20 @@ model TenantMembership {
   @@index([userId, createdAt])
 }
 
+
+model TenantMembership {
+  id        String   @id @default(cuid())
+  userId    String
+  tenantId  String
+  role      String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tenantId])
+}
+
 model Payment {
   id          String   @id @default(cuid())
   invoiceId   String
