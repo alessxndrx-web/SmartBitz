@@ -4,12 +4,13 @@ import { CreatePurchaseDto } from './dto/create-purchase.dto';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { ReceivePurchaseDto } from './dto/receive-purchase.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { TenantGuard } from '../../common/guards/tenant.guard';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { PermissionsGuard } from '../roles/guards/permissions.guard';
 import { Permissions } from '../roles/decorators/permissions.decorator';
 
 @Controller('purchases')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
 export class PurchasesController {
   constructor(private readonly purchasesService: PurchasesService) {}
 
@@ -30,7 +31,7 @@ export class PurchasesController {
   @Permissions('purchases:update')
   updateSupplier(
     @Param('id') id: string,
-    @Body() updateData: any,
+    @Body() updateData: Partial<CreateSupplierDto>,
     @TenantId() tenantId: string,
   ) {
     return this.purchasesService.updateSupplier(id, updateData, tenantId);
@@ -82,7 +83,7 @@ export class PurchasesController {
   @Permissions('purchases:update')
   updatePurchase(
     @Param('id') id: string,
-    @Body() updateData: any,
+    @Body() updateData: Partial<CreatePurchaseDto>,
     @TenantId() tenantId: string,
   ) {
     return this.purchasesService.updatePurchase(id, updateData, tenantId);

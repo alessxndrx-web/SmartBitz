@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
@@ -6,9 +6,10 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../roles/guards/permissions.guard';
 import { Permissions } from '../roles/decorators/permissions.decorator';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { TenantGuard } from '../../common/guards/tenant.guard';
 
 @Controller('payments')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
@@ -23,8 +24,18 @@ export class PaymentsController {
 
   @Get()
   @Permissions('payments:read')
-  findAll(@TenantId() tenantId: string) {
-    return this.paymentsService.findAll(tenantId);
+  findAll(
+    @TenantId() tenantId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('invoiceId') invoiceId?: string,
+  ) {
+    return this.paymentsService.findAll(
+      tenantId,
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 10,
+      invoiceId,
+    );
   }
 
   @Get('invoice/:invoiceId')
@@ -34,6 +45,12 @@ export class PaymentsController {
     @TenantId() tenantId: string,
   ) {
     return this.paymentsService.getInvoicePayments(invoiceId, tenantId);
+  }
+
+  @Get('stats')
+  @Permissions('payments:read')
+  getStats(@TenantId() tenantId: string) {
+    return this.paymentsService.getStats(tenantId);
   }
 
   @Get(':id')

@@ -88,18 +88,22 @@ export class CustomersService {
   async update(id: string, updateCustomerDto: UpdateCustomerDto, tenantId: string) {
     await this.findOne(id, tenantId);
 
-    return this.prisma.customer.update({
-      where: { id },
+    await this.prisma.customer.updateMany({
+      where: { id, tenantId },
       data: updateCustomerDto,
     });
+
+    return this.findOne(id, tenantId);
   }
 
   async remove(id: string, tenantId: string) {
     await this.findOne(id, tenantId);
 
-    return this.prisma.customer.delete({
-      where: { id },
+    await this.prisma.customer.deleteMany({
+      where: { id, tenantId },
     });
+
+    return { id, deleted: true };
   }
 
   async findByPhoneOrEmail(phone?: string, email?: string, tenantId?: string) {

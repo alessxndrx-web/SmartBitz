@@ -20,6 +20,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../roles/guards/permissions.guard';
 import { Permissions } from '../roles/decorators/permissions.decorator';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { TenantGuard } from '../../common/guards/tenant.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 interface MulterFile {
   fieldname: string;
@@ -34,7 +36,7 @@ interface MulterFile {
 }
 
 @Controller('files')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
 export class FilesController {
   constructor(private readonly filesService: FilesService) {}
 
@@ -59,7 +61,7 @@ export class FilesController {
     @UploadedFile() file: MulterFile,
     @Body() createFileDto: UploadFileDto,
     @TenantId() tenantId: string,
-    @Query('userId') userId?: string,
+    @CurrentUser() user?: { userId?: string },
   ) {
     if (!file) {
       throw new BadRequestException('No file uploaded');
@@ -77,7 +79,7 @@ export class FilesController {
       file.originalname,
       file.mimetype,
       tenantId,
-      userId,
+      user?.userId,
       metadata
     );
   }
@@ -87,7 +89,7 @@ export class FilesController {
   createFileMetadata(
     @Body() createFileDto: CreateFileDto,
     @TenantId() tenantId: string,
-    @Query('userId') userId?: string,
+    @CurrentUser() user?: { userId?: string },
   ) {
     // Este endpoint ahora está obsoleto, se usa uploadFile
     throw new BadRequestException('Use /upload endpoint instead');

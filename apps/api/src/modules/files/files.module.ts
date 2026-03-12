@@ -1,7 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { FilesController } from './files.controller';
 import { FilesService } from './files.service';
-import { PrismaService } from '../../database/prisma.service';
 import { RolesModule } from '../roles/roles.module';
 import { LocalStorageProvider } from './providers/local-storage.provider';
 import { ConfigModule } from '@nestjs/config';
@@ -10,7 +9,7 @@ import { ConfigModule } from '@nestjs/config';
   controllers: [FilesController],
   providers: [
     FilesService, 
-    PrismaService, 
+    
     LocalStorageProvider,
     {
       provide: 'StorageProvider',

@@ -1,25 +1,39 @@
-version: "3.9"
+name: smartbitz-local
 
 services:
   postgres:
-    image: postgres:16
-    container_name: smartbitz_postgres
+    image: postgres:16-alpine
+    container_name: smartbitz-postgres
     restart: unless-stopped
     environment:
+      POSTGRES_USER: smartbitz
+      POSTGRES_PASSWORD: smartbitz
       POSTGRES_DB: smartbitz
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smartbitz -d smartbitz"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - smartbitz-postgres-data:/var/lib/postgresql/data
 
   redis:
-    image: redis:7
-    container_name: smartbitz_redis
+    image: redis:7-alpine
+    container_name: smartbitz-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - smartbitz-redis-data:/data
 
 volumes:
-  postgres_data:
+  smartbitz-postgres-data:
+  smartbitz-redis-data:

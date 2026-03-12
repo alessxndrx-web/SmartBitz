@@ -1,11 +1,10 @@
 import { IsEmail, IsString, IsNotEmpty, IsEnum } from 'class-validator';
 
 export enum UserRole {
-  OWNER = 'owner',
-  ADMIN = 'admin',
-  CASHIER = 'cashier',
-  ACCOUNTANT = 'accountant',
-  OPERATOR = 'operator',
+  PLATFORM_ADMIN = 'platform_admin',
+  TENANT_OWNER = 'tenant_owner',
+  TENANT_ADMIN = 'tenant_admin',
+  STAFF = 'staff',
 }
 
 export class RegisterDto {

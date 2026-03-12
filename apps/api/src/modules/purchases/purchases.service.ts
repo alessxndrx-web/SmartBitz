@@ -32,18 +32,20 @@ export class PurchasesService {
 
   async updateSupplier(id: string, updateData: Partial<CreateSupplierDto>, tenantId: string) {
     await this.findSupplierById(id, tenantId);
-    return this.prisma.supplier.update({
-      where: { id },
+    await this.prisma.supplier.updateMany({
+      where: { id, tenantId },
       data: updateData,
     });
+    return this.findSupplierById(id, tenantId);
   }
 
   async removeSupplier(id: string, tenantId: string) {
     await this.findSupplierById(id, tenantId);
-    return this.prisma.supplier.update({
-      where: { id },
+    await this.prisma.supplier.updateMany({
+      where: { id, tenantId },
       data: { isActive: false },
     });
+    return { id, deleted: true };
   }
 
   private async findSupplierById(id: string, tenantId: string) {
@@ -200,20 +202,13 @@ export class PurchasesService {
     return purchase;
   }
 
-  async updatePurchase(id: string, updateData: any, tenantId: string) {
+  async updatePurchase(id: string, updateData: Partial<CreatePurchaseDto>, tenantId: string) {
     await this.findOnePurchase(id, tenantId);
-    return this.prisma.purchase.update({
-      where: { id },
+    await this.prisma.purchase.updateMany({
+      where: { id, tenantId },
       data: updateData,
-      include: {
-        supplier: true,
-        items: {
-          include: {
-            item: true,
-          },
-        },
-      },
     });
+    return this.findOnePurchase(id, tenantId);
   }
 
   async cancelPurchase(id: string, tenantId: string) {
@@ -227,18 +222,11 @@ export class PurchasesService {
       throw new BadRequestException('Purchase already cancelled');
     }
 
-    return this.prisma.purchase.update({
-      where: { id },
+    await this.prisma.purchase.updateMany({
+      where: { id, tenantId },
       data: { status: PurchaseStatus.CANCELLED },
-      include: {
-        supplier: true,
-        items: {
-          include: {
-            item: true,
-          },
-        },
-      },
     });
+    return this.findOnePurchase(id, tenantId);
   }
 
   async receivePurchase(id: string, receivePurchaseDto: ReceivePurchaseDto, tenantId: string) {
@@ -325,12 +313,16 @@ export class PurchasesService {
       // Update purchase status
       const newStatus = allItemsReceived ? PurchaseStatus.RECEIVED : PurchaseStatus.PENDING;
       
-      const updatedPurchase = await tx.purchase.update({
-        where: { id },
+      await tx.purchase.updateMany({
+        where: { id, tenantId },
         data: {
           status: newStatus,
           receivedAt: newStatus === PurchaseStatus.RECEIVED ? new Date() : null,
         },
+      });
+
+      const updatedPurchase = await tx.purchase.findFirst({
+        where: { id, tenantId },
         include: {
           supplier: true,
           items: {
@@ -338,6 +330,10 @@ export class PurchasesService {
           },
         },
       });
+
+      if (!updatedPurchase) {
+        throw new NotFoundException('Purchase not found');
+      }
 
       return {
         purchase: updatedPurchase,
